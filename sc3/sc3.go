@@ -46,19 +46,44 @@ type Proxy struct {
 	Index     int
 }
 
+func NewProxy(primitive Primitive) Proxy {
+	px := Proxy{}
+	px.Index = 0
+	px.primitive = primitive
+	return px
+}
+
 type Control struct {
 	Rate  int
 	name  string
 	Index int
 }
 
+func NewControl(name string) Control {
+	cc := Control{}
+	cc.Index = 0
+	cc.Rate = RateKr
+	cc.name = name
+	return cc
+}
+
 type Mce struct {
 	ugens []UgenType
+}
+
+func NewMce(ugens []UgenType) Mce {
+	mc := Mce{ugens: ugens}
+	return mc
 }
 
 type Mrg struct {
 	left  UgenType
 	right UgenType
+}
+
+func NewMrg(left UgenType, right UgenType) Mrg {
+	mg := Mrg{left: left, right: right}
+	return mg
 }
 
 type IConst struct {
@@ -282,7 +307,7 @@ func ugenFilter(fun func(u UgenType) bool, ugens []UgenType) []UgenType {
 	return out
 }
 
-func transposer(ugens [][]UgenType) [][]UgenType {
+func Transposer(ugens [][]UgenType) [][]UgenType {
 	len1 := len(ugens)
 	len2 := len(ugens[0])
 	out := make([][]UgenType, len2)
@@ -313,7 +338,7 @@ func mceTransform(ugen UgenType) UgenType {
 		for _, elem := range ugen.(Primitive).inputs {
 			ext = append(ext, mceExtend(upr, elem))
 		}
-		iet := transposer(ext)
+		iet := Transposer(ext)
 		var out []UgenType
 		p := ugen.(Primitive)
 		for _, elem := range iet {
