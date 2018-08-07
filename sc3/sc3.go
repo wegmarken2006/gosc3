@@ -2,6 +2,7 @@ package sc3
 
 import (
 	. "gosc3/osc"
+	"sort"
 )
 
 const (
@@ -139,9 +140,10 @@ type NodeU struct {
 	UgenID  int
 }
 
-func (n NodeC) isNode() {}
-func (n NodeK) isNode() {}
-func (n NodeU) isNode() {}
+func (n NodeC) isNode()    {}
+func (n NodeK) isNode()    {}
+func (n NodeU) isNode()    {}
+func (nn []nodeType) Len() { return len(nn) }
 
 type Graph struct {
 	nextID    int
@@ -616,35 +618,63 @@ func pushU(ugen UgenType, gr Graph) (nodeType, Graph) {
 	return node, gr1
 }
 
-/*
-func acc(ll []UgenType, nn []nodeType, gr graph) ([]nodeType, graph) {
+func acc(ll []UgenType, nn []nodeType, gr Graph) ([]nodeType, Graph) {
 	if len(ll) == 0 {
 		nnlen := len(nn)
-		nnr := make([]nodeType, nnlen)
-		for ind := 0; ind < nnlen; ind = ind + 1 {
-			nnr[ind] = nn[nnlen-ind-1]
-		}
+		nnr := sort.Reverse(nn)
+		/*
+			nnr := make([]nodeType, nnlen)
+			for ind := 0; ind < nnlen; ind = ind + 1 {
+				nnr[ind] = nn[nnlen-ind-1]
+			}
+		*/
 		return nnr, gr
 	}
 	ng1, ng2 := mkNode(ll[0], gr)
-
-	//TODO
+	nn = append(nn, ng1)
+	return acc(ll[1:len(ll)], nn, ng2)
 }
 
-func mkNode(ugen UgenType, gr graph) (nodeType, graph) {
+func mkNodeU(ugen UgenType, gr Graph) (nodeType, Graph) {
 	switch ugen.(type) {
-	case iConst:
+	case Primitive:
+		pr1 := ugen.(Primitive)
+		ng1, gnew := acc(pr1.inputs, []nodeType{}, gr)
+		inputs2 := []UgenType{}
+		for _, nd := range ng1 {
+			inputs2 = append(inputs2, asFromPort(nd))
+		}
+		rate := pr1.Rate
+		name := pr1.name
+		index := pr1.Index
+
+		for _, nd2 := range gnew.ugens {
+			if findUP(rate, name, index, nd2) {
+				return nd2, gnew
+			}
+		}
+		pr := Primitive{name: name, Rate: rate, inputs: inputs2,
+			outputs: pr1.outputs, Special: pr1.Special, Index: index}
+		return pushU(pr, gnew)
+		break
+	default:
+		panic("mknodeu")
+	}
+
+}
+
+func mkNode(ugen UgenType, gr Graph) (nodeType, Graph) {
+	switch ugen.(type) {
+	case IConst:
 		return mkNodeC(ugen, gr)
-	case fConst:
+	case FConst:
 		return mkNodeC(ugen, gr)
-	case primitive:
+	case Primitive:
 		return mkNodeU(ugen, gr)
-	case mrg:
-		_, gr1 := mkNode(ugen.(mrg).right, gr)
-		return mkNode(ugen.(mrg).left, gr1)
+	case Mrg:
+		_, gr1 := mkNode(ugen.(Mrg).right, gr)
+		return mkNode(ugen.(Mrg).left, gr1)
 	default:
 		panic("mkNode")
 	}
 }
-
-*/
