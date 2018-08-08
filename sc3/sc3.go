@@ -31,18 +31,28 @@ func (s NodeTypeList) Less(i, j int) bool {
 	return i < j
 }
 
+type UgenList []UgenType
+
+func (uu UgenList) Len() int { return len(uu) }
+func (s UgenList) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s UgenList) Less(i, j int) bool {
+	return i < j
+}
+
 type Primitive struct {
 	Rate int
 	name string
 	//inputs  []interface{}
-	inputs  []UgenType
+	inputs  UgenList
 	outputs []int
 	Special int
 	Index   int
 }
 
 // NewPrimitive primitive constructor
-func NewPrimitive(name string, inputs []UgenType, outputs []int) Primitive {
+func NewPrimitive(name string, inputs UgenList, outputs []int) Primitive {
 	pr := Primitive{}
 	pr.Index = 0
 	pr.Special = 0
@@ -80,10 +90,10 @@ func NewControl(name string) Control {
 }
 
 type Mce struct {
-	ugens []UgenType
+	ugens UgenList
 }
 
-func NewMce(ugens []UgenType) Mce {
+func NewMce(ugens UgenList) Mce {
 	mc := Mce{ugens: ugens}
 	return mc
 }
@@ -145,7 +155,7 @@ type NodeU struct {
 	id      int
 	name    string
 	Rate    int
-	inputs  []UgenType
+	inputs  UgenList
 	outputs []int
 	Special int
 	UgenID  int
@@ -201,9 +211,9 @@ func iota(n int, init int, step int) []int {
 	out = append(out, iota(n-1, init+step, step)...)
 	return out
 }
-func extend(ugens []UgenType, newlen int) []UgenType {
+func extend(ugens UgenList, newlen int) UgenList {
 	var ln int
-	var out []UgenType
+	var out UgenList
 	ln = len(ugens)
 	if ln > newlen {
 		out = ugens[0:newlen]
@@ -277,14 +287,14 @@ func mceDegree(ugen UgenType) int {
 	}
 }
 
-func mceExtend(n int, ugen UgenType) []UgenType {
+func mceExtend(n int, ugen UgenType) UgenList {
 	switch ugen.(type) {
 	case Mce:
 		return extend(ugen.(Mce).ugens, n)
 	case Mrg:
 		ex := mceExtend(n, ugen.(Mrg).left)
 		if len(ex) > 0 {
-			var out []UgenType
+			var out UgenList
 			out = append(out, ugen)
 			out = append(out, ex[1:]...)
 			return out
@@ -292,7 +302,7 @@ func mceExtend(n int, ugen UgenType) []UgenType {
 		panic(mceExtend)
 
 	default:
-		var out []UgenType
+		var out UgenList
 		for ind := 0; ind < n; ind = ind + 1 {
 			out = append(out, ugen)
 		}
@@ -309,8 +319,8 @@ func isMce(ugen UgenType) bool {
 	}
 }
 
-func ugenFilter(fun func(u UgenType) bool, ugens []UgenType) []UgenType {
-	var out []UgenType
+func ugenFilter(fun func(u UgenType) bool, ugens UgenList) UgenList {
+	var out UgenList
 	for _, elem := range ugens {
 		if fun(elem) {
 			out = append(out, elem)
@@ -319,12 +329,12 @@ func ugenFilter(fun func(u UgenType) bool, ugens []UgenType) []UgenType {
 	return out
 }
 
-func Transposer(ugens [][]UgenType) [][]UgenType {
+func Transposer(ugens []UgenList) []UgenList {
 	len1 := len(ugens)
 	len2 := len(ugens[0])
-	out := make([][]UgenType, len2)
+	out := make([]UgenList, len2)
 	for ind := range out {
-		out[ind] = make([]UgenType, len1)
+		out[ind] = make(UgenList, len1)
 	}
 	for ind2 := 0; ind2 < len2; ind2 = ind2 + 1 {
 		out1 := out[ind2]
@@ -346,12 +356,12 @@ func mceTransform(ugen UgenType) UgenType {
 			degs = append(degs, mceDegree(elem))
 		}
 		upr := maxNum(degs, 0)
-		var ext [][]UgenType
+		var ext []UgenList
 		for _, elem := range ugen.(Primitive).inputs {
 			ext = append(ext, mceExtend(upr, elem))
 		}
 		iet := Transposer(ext)
-		var out []UgenType
+		var out UgenList
 		p := ugen.(Primitive)
 		for _, elem := range iet {
 			p.inputs = elem
@@ -367,7 +377,7 @@ func mceTransform(ugen UgenType) UgenType {
 func mceExpand(ugen UgenType) UgenType {
 	switch ugen.(type) {
 	case Mce:
-		var lst []UgenType
+		var lst UgenList
 		for _, elem := range ugen.(Mce).ugens {
 			lst = append(lst, mceExpand(elem))
 		}
@@ -401,7 +411,7 @@ func mceChannel(n int, ugen UgenType) UgenType {
 	}
 }
 
-func mceChannels(ugen UgenType) []UgenType {
+func mceChannels(ugen UgenType) UgenList {
 	switch ugen.(type) {
 	case Mce:
 		return ugen.(Mce).ugens
@@ -409,7 +419,7 @@ func mceChannels(ugen UgenType) []UgenType {
 		lst := mceChannels(ugen.(Mrg).left)
 		if len(lst) > 1 {
 			mrg1 := Mrg{lst[0], ugen.(Mrg).right}
-			out := []UgenType{mrg1}
+			out := UgenList{mrg1}
 			out = append(out, lst[1:]...)
 			return out
 
@@ -417,14 +427,14 @@ func mceChannels(ugen UgenType) []UgenType {
 		panic("mceChannels")
 
 	default:
-		return []UgenType{ugen}
+		return UgenList{ugen}
 	}
 }
 
 func proxify(ugen UgenType) UgenType {
 	switch ugen.(type) {
 	case Mce:
-		var lst []UgenType
+		var lst UgenList
 		for _, elem := range ugen.(Mce).ugens {
 			lst = append(lst, proxify(elem))
 		}
@@ -438,7 +448,7 @@ func proxify(ugen UgenType) UgenType {
 			return ugen
 		}
 		lst1 := iota(ln, 0, 1)
-		lst2 := []UgenType{}
+		lst2 := UgenList{}
 		for _, index := range lst1 {
 			lst2 = append(lst2, Proxy{primitive: ugen.(Primitive), Index: index})
 		}
@@ -450,7 +460,7 @@ func proxify(ugen UgenType) UgenType {
 
 }
 
-func mkUgen(rate int, name string, inputs []UgenType, outputs []int, ind int, sp int) UgenType {
+func mkUgen(rate int, name string, inputs UgenList, outputs []int, ind int, sp int) UgenType {
 	pr1 := Primitive{name: name, Rate: rate, inputs: inputs, outputs: outputs, Special: sp, Index: ind}
 	return proxify(pr1)
 }
@@ -628,7 +638,7 @@ func pushU(ugen UgenType, gr Graph) (NodeType, Graph) {
 	return node, gr1
 }
 
-func acc(ll []UgenType, nn NodeTypeList, gr Graph) (NodeTypeList, Graph) {
+func acc(ll UgenList, nn NodeTypeList, gr Graph) (NodeTypeList, Graph) {
 	if len(ll) == 0 {
 		//nnlen := len(nn)
 		nnr := sort.Reverse(nn).(NodeTypeList)
@@ -650,7 +660,7 @@ func mkNodeU(ugen UgenType, gr Graph) (NodeType, Graph) {
 	case Primitive:
 		pr1 := ugen.(Primitive)
 		ng1, gnew := acc(pr1.inputs, NodeTypeList{}, gr)
-		inputs2 := []UgenType{}
+		inputs2 := UgenList{}
 		for _, nd := range ng1 {
 			inputs2 = append(inputs2, asFromPort(nd))
 		}
@@ -692,10 +702,57 @@ func mkNode(ugen UgenType, gr Graph) (NodeType, Graph) {
 func sc3Implicit(num int) NodeU {
 	rates := []int{}
 	for index := 1; index < num+1; index++ {
-		rates := append(rates, RateKr)
+		rates = append(rates, RateKr)
 	}
 
-	node := NodeU{id: -1, name: "Control", inputs: []UgenType{},
+	node := NodeU{id: -1, name: "Control", inputs: UgenList{},
 		outputs: rates, UgenID: 0, Rate: RateKr, Special: 0}
 	return node
+}
+
+func mrgN(lst UgenList) UgenType {
+	if len(lst) == 1 {
+		return lst[0]
+	} else if len(lst) == 2 {
+		return Mrg{left: lst[0], right: lst[1]}
+	}
+	newLst := UgenList{}
+	newLst = append(newLst, lst...)
+	return Mrg{left: lst[0], right: mrgN(newLst)}
+}
+
+func prepareRoot(ugen UgenType) UgenType {
+	switch ugen.(type) {
+	case Mce:
+		return mrgN(ugen.(Mce).ugens)
+	case Mrg:
+		return Mrg{left: prepareRoot(ugen.(Mrg).left), right: prepareRoot(ugen.(Mrg).right)}
+	default:
+		break
+	}
+	return ugen
+}
+
+func emptyGraph() Graph {
+	return Graph{nextID: 0, constants: []NodeC{}, controls: []NodeK{},
+		ugens: []NodeU{}}
+}
+
+func synth(ugen UgenType) Graph {
+	root := prepareRoot(ugen)
+	_, gr := mkNode(root, emptyGraph())
+	cs := gr.constants
+	ks := gr.controls
+	us := gr.ugens
+	//reverse us
+	us1 := []NodeU{}
+	for ind := len(us) - 1; ind >= 0; ind-- {
+		us1 = append(us1, us[ind])
+	}
+	if len(ks) != 0 {
+		node := sc3Implicit(len(ks))
+		us1 = append([]NodeU{node}, us1...)
+	}
+	grout := Graph{nextID: -1, constants: cs, controls: ks, ugens: us1}
+	return grout
 }
