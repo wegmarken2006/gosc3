@@ -2,9 +2,8 @@ package main
 
 import (
 	"fmt"
-	//	. "gosc3/osc"
-	//	. "gosc3/sc3"
-	"sort"
+	. "gosc3/osc"
+	//		. "gosc3/sc3"
 )
 
 func main() {
@@ -13,9 +12,9 @@ func main() {
 	//	s1 := "gigi"
 	//	fmt.Println(StrPstr(s1))
 
-	a := []string{"1", "2", "3"}
-	b := sort.Reverse(a)
-	fmt.Println("start")
+	a1 := DecodeF32(EncodeF32(51.33))
+	fmt.Println(a1)
+	fmt.Println("end")
 
 	/*
 		out := 2

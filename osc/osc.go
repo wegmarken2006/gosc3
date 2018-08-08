@@ -27,6 +27,13 @@ func EncodeI32(num int) []byte {
 	return wbuf.Bytes()
 }
 
+func EncodeF32(num float32) []byte {
+	var buf []byte
+	wbuf := bytes.NewBuffer(buf)
+	eb.Write(wbuf, eb.BigEndian, float32(num))
+	return wbuf.Bytes()
+}
+
 func EncodeStr(str string) []byte {
 	byteArray := []byte(str)
 	return byteArray
@@ -43,4 +50,25 @@ func DecodeI16(buf []byte) int {
 	rbuf := bytes.NewReader(buf)
 	eb.Read(rbuf, eb.BigEndian, &num)
 	return int(num)
+}
+
+func DecodeI8(buf []byte) int {
+	var num uint8
+	rbuf := bytes.NewReader(buf)
+	eb.Read(rbuf, eb.BigEndian, &num)
+	return int(num)
+}
+
+func DecodeI32(buf []byte) int {
+	var num uint32
+	rbuf := bytes.NewReader(buf)
+	eb.Read(rbuf, eb.BigEndian, &num)
+	return int(num)
+}
+
+func DecodeF32(buf []byte) float32 {
+	var num float32
+	rbuf := bytes.NewReader(buf)
+	eb.Read(rbuf, eb.BigEndian, &num)
+	return float32(num)
 }
