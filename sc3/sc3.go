@@ -16,8 +16,19 @@ type UgenType interface {
 	isUgen()
 }
 
-type nodeType interface {
+type NodeType interface {
 	isNode()
+}
+
+type NodeTypeList []NodeType
+
+// for sort
+func (nn NodeTypeList) Len() int { return len(nn) }
+func (s NodeTypeList) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s NodeTypeList) Less(i, j int) bool {
+	return i < j
 }
 
 type Primitive struct {
@@ -140,10 +151,9 @@ type NodeU struct {
 	UgenID  int
 }
 
-func (n NodeC) isNode()    {}
-func (n NodeK) isNode()    {}
-func (n NodeU) isNode()    {}
-func (nn []nodeType) Len() { return len(nn) }
+func (n NodeC) isNode() {}
+func (n NodeK) isNode() {}
+func (n NodeU) isNode() {}
 
 type Graph struct {
 	nextID    int
@@ -445,11 +455,11 @@ func mkUgen(rate int, name string, inputs []UgenType, outputs []int, ind int, sp
 	return proxify(pr1)
 }
 
-func nodeCvalue(node nodeType) float32 {
+func nodeCvalue(node NodeType) float32 {
 	return node.(NodeC).value
 }
 
-func nodeKdefault(node nodeType) int {
+func nodeKdefault(node NodeType) int {
 	return node.(NodeK).Def
 }
 
@@ -478,7 +488,7 @@ func fetch(val int, lst []int) int {
 	return -1
 }
 
-func encodeNodeK(mp MMap, node nodeType) []byte {
+func encodeNodeK(mp MMap, node NodeType) []byte {
 	out := StrPstr(node.(NodeK).name)
 	id1 := fetch(node.(NodeK).id, mp.ks)
 	out = append(out, EncodeI16(id1)...)
@@ -507,7 +517,7 @@ func mkInput(mm MMap, fp UgenType) input {
 	}
 }
 
-func asFromPort(node nodeType) UgenType {
+func asFromPort(node NodeType) UgenType {
 	switch node.(type) {
 	case NodeC:
 		return fromPortC{portNID: node.(NodeC).id}
@@ -521,7 +531,7 @@ func asFromPort(node nodeType) UgenType {
 	}
 }
 
-func encodeNodeU(mm MMap, node nodeType) []byte {
+func encodeNodeU(mm MMap, node NodeType) []byte {
 	len1 := len(node.(NodeU).inputs)
 	len2 := len(node.(NodeU).outputs)
 	out := StrPstr(node.(NodeU).name)
@@ -538,11 +548,11 @@ func encodeNodeU(mm MMap, node nodeType) []byte {
 	return out
 }
 
-func findCP(val float32, node nodeType) bool {
+func findCP(val float32, node NodeType) bool {
 	return val == node.(NodeC).value
 }
 
-func pushC(val float32, gr Graph) (nodeType, Graph) {
+func pushC(val float32, gr Graph) (NodeType, Graph) {
 	node := NodeC{id: gr.nextID + 1, value: val}
 	consts := []NodeC{node}
 	consts = append(consts, gr.constants...)
@@ -550,7 +560,7 @@ func pushC(val float32, gr Graph) (nodeType, Graph) {
 	return node, gr1
 }
 
-func mkNodeC(ugen UgenType, gr Graph) (nodeType, Graph) {
+func mkNodeC(ugen UgenType, gr Graph) (NodeType, Graph) {
 	var val float32
 	switch ugen.(type) {
 	case IConst:
@@ -570,11 +580,11 @@ func mkNodeC(ugen UgenType, gr Graph) (nodeType, Graph) {
 	return pushC(val, gr)
 }
 
-func findKP(str string, node nodeType) bool {
+func findKP(str string, node NodeType) bool {
 	return node.(NodeK).name == str
 }
 
-func pushK(ugen UgenType, gr Graph) (nodeType, Graph) {
+func pushK(ugen UgenType, gr Graph) (NodeType, Graph) {
 	node := NodeK{id: gr.nextID + 1, name: ugen.(Control).name,
 		Def: ugen.(Control).Index, Rate: ugen.(Control).Rate}
 	contrs := []NodeK{node}
@@ -584,7 +594,7 @@ func pushK(ugen UgenType, gr Graph) (nodeType, Graph) {
 	return node, gr1
 }
 
-func mkNodeK(ugen UgenType, gr Graph) (nodeType, Graph) {
+func mkNodeK(ugen UgenType, gr Graph) (NodeType, Graph) {
 	ln := len(gr.controls)
 	name := ugen.(Control).name
 	for ind := 0; ind < ln; ind = ind + 1 {
@@ -596,7 +606,7 @@ func mkNodeK(ugen UgenType, gr Graph) (nodeType, Graph) {
 	return pushK(ugen, gr)
 }
 
-func findUP(rate int, name string, id int, node nodeType) bool {
+func findUP(rate int, name string, id int, node NodeType) bool {
 	if node.(NodeU).Rate == rate && node.(NodeU).name == name &&
 		node.(NodeU).id == id {
 		return true
@@ -604,7 +614,7 @@ func findUP(rate int, name string, id int, node nodeType) bool {
 	return false
 }
 
-func pushU(ugen UgenType, gr Graph) (nodeType, Graph) {
+func pushU(ugen UgenType, gr Graph) (NodeType, Graph) {
 	intrates := []int{}
 	for _, elem := range ugen.(Primitive).outputs {
 		intrates = append(intrates, rateOf(elem))
@@ -618,12 +628,12 @@ func pushU(ugen UgenType, gr Graph) (nodeType, Graph) {
 	return node, gr1
 }
 
-func acc(ll []UgenType, nn []nodeType, gr Graph) ([]nodeType, Graph) {
+func acc(ll []UgenType, nn NodeTypeList, gr Graph) (NodeTypeList, Graph) {
 	if len(ll) == 0 {
-		nnlen := len(nn)
-		nnr := sort.Reverse(nn)
+		//nnlen := len(nn)
+		nnr := sort.Reverse(nn).(NodeTypeList)
 		/*
-			nnr := make([]nodeType, nnlen)
+			nnr := make(NodeTypeList, nnlen)
 			for ind := 0; ind < nnlen; ind = ind + 1 {
 				nnr[ind] = nn[nnlen-ind-1]
 			}
@@ -635,11 +645,11 @@ func acc(ll []UgenType, nn []nodeType, gr Graph) ([]nodeType, Graph) {
 	return acc(ll[1:len(ll)], nn, ng2)
 }
 
-func mkNodeU(ugen UgenType, gr Graph) (nodeType, Graph) {
+func mkNodeU(ugen UgenType, gr Graph) (NodeType, Graph) {
 	switch ugen.(type) {
 	case Primitive:
 		pr1 := ugen.(Primitive)
-		ng1, gnew := acc(pr1.inputs, []nodeType{}, gr)
+		ng1, gnew := acc(pr1.inputs, NodeTypeList{}, gr)
 		inputs2 := []UgenType{}
 		for _, nd := range ng1 {
 			inputs2 = append(inputs2, asFromPort(nd))
@@ -658,12 +668,12 @@ func mkNodeU(ugen UgenType, gr Graph) (nodeType, Graph) {
 		return pushU(pr, gnew)
 		break
 	default:
-		panic("mknodeu")
+		break
 	}
-
+	panic("mknodeu")
 }
 
-func mkNode(ugen UgenType, gr Graph) (nodeType, Graph) {
+func mkNode(ugen UgenType, gr Graph) (NodeType, Graph) {
 	switch ugen.(type) {
 	case IConst:
 		return mkNodeC(ugen, gr)
@@ -677,4 +687,15 @@ func mkNode(ugen UgenType, gr Graph) (nodeType, Graph) {
 	default:
 		panic("mkNode")
 	}
+}
+
+func sc3Implicit(num int) NodeU {
+	rates := []int{}
+	for index := 1; index < num+1; index++ {
+		rates := append(rates, RateKr)
+	}
+
+	node := NodeU{id: -1, name: "Control", inputs: []UgenType{},
+		outputs: rates, UgenID: 0, Rate: RateKr, Special: 0}
+	return node
 }
