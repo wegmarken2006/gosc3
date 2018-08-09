@@ -498,35 +498,6 @@ func fetch(val int, lst []int) int {
 	return -1
 }
 
-func encodeNodeK(mp MMap, node NodeType) []byte {
-	out := StrPstr(node.(NodeK).name)
-	id1 := fetch(node.(NodeK).id, mp.ks)
-	out = append(out, EncodeI16(id1)...)
-	return out
-}
-
-func encodeInput(inp input) []byte {
-	out := EncodeI16(inp.u)
-	out = append(out, EncodeI16(inp.p)...)
-	return out
-}
-
-func mkInput(mm MMap, fp UgenType) input {
-	switch fp.(type) {
-	case fromPortC:
-		p := fetch(fp.(fromPortC).portNID, mm.cs)
-		return input{u: -1, p: p}
-	case fromPortK:
-		p := fetch(fp.(fromPortK).portNID, mm.ks)
-		return input{u: 0, p: p}
-	case fromPortU:
-		u := fetch(fp.(fromPortU).portNID, mm.us)
-		return input{u: u, p: fp.(fromPortK).portNID}
-	default:
-		panic("mkInput")
-	}
-}
-
 func asFromPort(node NodeType) UgenType {
 	switch node.(type) {
 	case NodeC:
@@ -539,23 +510,6 @@ func asFromPort(node NodeType) UgenType {
 		panic("asFromPort")
 
 	}
-}
-
-func encodeNodeU(mm MMap, node NodeType) []byte {
-	len1 := len(node.(NodeU).inputs)
-	len2 := len(node.(NodeU).outputs)
-	out := StrPstr(node.(NodeU).name)
-	out = append(out, EncodeI8(node.(NodeU).Rate)...)
-	out = append(out, EncodeI16(len1)...)
-	out = append(out, EncodeI16(len2)...)
-	out = append(out, EncodeI16(node.(NodeU).Special)...)
-	for ind := 0; ind < len1; ind = ind + 1 {
-		out = append(out, encodeInput(mkInput(mm, node.(NodeU).inputs[ind]))...)
-	}
-	for ind := 0; ind < len2; ind = ind + 1 {
-		out = append(out, EncodeI8(node.(NodeU).outputs[ind])...)
-	}
-	return out
 }
 
 func findCP(val float32, node NodeType) bool {
@@ -755,4 +709,92 @@ func synth(ugen UgenType) Graph {
 	}
 	grout := Graph{nextID: -1, constants: cs, controls: ks, ugens: us1}
 	return grout
+}
+
+func encodeNodeK(mp MMap, node NodeType) []byte {
+	out := StrPstr(node.(NodeK).name)
+	id1 := fetch(node.(NodeK).id, mp.ks)
+	out = append(out, EncodeI16(id1)...)
+	return out
+}
+
+func encodeInput(inp input) []byte {
+	out := EncodeI16(inp.u)
+	out = append(out, EncodeI16(inp.p)...)
+	return out
+}
+
+func mkInput(mm MMap, fp UgenType) input {
+	switch fp.(type) {
+	case fromPortC:
+		p := fetch(fp.(fromPortC).portNID, mm.cs)
+		return input{u: -1, p: p}
+	case fromPortK:
+		p := fetch(fp.(fromPortK).portNID, mm.ks)
+		return input{u: 0, p: p}
+	case fromPortU:
+		u := fetch(fp.(fromPortU).portNID, mm.us)
+		return input{u: u, p: fp.(fromPortK).portNID}
+	default:
+		panic("mkInput")
+	}
+}
+
+func encodeNodeU(mm MMap, node NodeType) []byte {
+	len1 := len(node.(NodeU).inputs)
+	len2 := len(node.(NodeU).outputs)
+	out := StrPstr(node.(NodeU).name)
+	out = append(out, EncodeI8(node.(NodeU).Rate)...)
+	out = append(out, EncodeI16(len1)...)
+	out = append(out, EncodeI16(len2)...)
+	out = append(out, EncodeI16(node.(NodeU).Special)...)
+	for ind := 0; ind < len1; ind = ind + 1 {
+		out = append(out, encodeInput(mkInput(mm, node.(NodeU).inputs[ind]))...)
+	}
+	for ind := 0; ind < len2; ind = ind + 1 {
+		out = append(out, EncodeI8(node.(NodeU).outputs[ind])...)
+	}
+	return out
+}
+
+func encodeGraphDef(name string, graph Graph) []byte {
+	mm := mkMap(graph)
+	out := []byte{}
+	out = append(out, EncodeStr("SCgf")...)
+	out = append(out, EncodeI32(0)...)
+	out = append(out, EncodeI16(1)...)
+	out = append(out, StrPstr(name)...)
+	out = append(out, EncodeI16(len(graph.constants))...)
+	l1 := []float32{}
+	for _, elem := range graph.constants {
+		l1 = append(l1, nodeCvalue(elem))
+	}
+	a5 := []byte{}
+	for _, elem := range l1 {
+		a5 = append(a5, EncodeF32(elem)...)
+	}
+	out = append(out, a5...)
+	out = append(out, EncodeI16(len(graph.controls))...)
+	l2 := []int{}
+	for _, elem := range graph.controls {
+		l2 = append(l2, nodeKdefault(elem))
+	}
+	a7 := []byte{}
+	for _, elem := range l2 {
+		a7 = append(a7, EncodeF32((float32)(elem)...)
+	}
+	out = append(out, a7...)
+	out = append(out, EncodeI16(len(graph.controls))...)
+	a9 := []byte{}
+	for _, elem := range graph.controls {
+		a9 = append(a9, encodeNodeK(mm, elem)...)
+	}
+	out = append(out, a9...)
+	out = append(out, EncodeI16(len(graph.ugens))...)
+	a11 := []byte{}
+	for _, elem := range graph.ugens {
+		a10 = append(a10, encodeNodeU(mm, elem)...)
+	}
+	out = append(out, a11...)
+	return out
 }
