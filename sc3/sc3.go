@@ -734,7 +734,7 @@ func mkInput(mm MMap, fp UgenType) input {
 		return input{u: 0, p: p}
 	case fromPortU:
 		u := fetch(fp.(fromPortU).portNID, mm.us)
-		return input{u: u, p: fp.(fromPortK).portNID}
+		return input{u: u, p: fp.(fromPortU).portIDX}
 	default:
 		panic("mkInput")
 	}
@@ -781,7 +781,7 @@ func encodeGraphDef(name string, graph Graph) []byte {
 	}
 	a7 := []byte{}
 	for _, elem := range l2 {
-		a7 = append(a7, EncodeF32((float32)(elem)...)
+		a7 = append(a7, EncodeF32((float32)(elem))...)
 	}
 	out = append(out, a7...)
 	out = append(out, EncodeI16(len(graph.controls))...)
@@ -791,10 +791,10 @@ func encodeGraphDef(name string, graph Graph) []byte {
 	}
 	out = append(out, a9...)
 	out = append(out, EncodeI16(len(graph.ugens))...)
-	a11 := []byte{}
+	a10 := []byte{}
 	for _, elem := range graph.ugens {
 		a10 = append(a10, encodeNodeU(mm, elem)...)
 	}
-	out = append(out, a11...)
+	out = append(out, a10...)
 	return out
 }
