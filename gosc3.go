@@ -14,7 +14,7 @@ func main() {
 
 	a1 := DecodeF32(EncodeF32(51.33))
 	fmt.Println(a1)
-	OscSend([]byte{1, 2, 3})
+	ScStart()
 	fmt.Println("end")
 
 	/*

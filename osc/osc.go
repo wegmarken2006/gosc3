@@ -102,20 +102,75 @@ func EncodeBlob(bts []byte) []byte {
 	return outb
 }
 
-func EncodeDatum(dt interface{}) []byte {
+type IDatum interface{}
+
+func EncodeDatum(dt IDatum) []byte {
 	switch dt.(type) {
 	case int:
-		return EncodeI32(dt.(int))
+		return EncodeI32((dt.(int)))
 	case float32:
-		return EncodeF32(dt.(float32))
+		return EncodeF32((dt.(float32)))
 	case string:
-		return EncodeStr(dt.(string))
+		return EncodeStr((dt.(string)))
 	case []byte:
-		return EncodeBlob(dt.([]byte))
+		return EncodeBlob((dt.([]byte)))
 	default:
 		break
 	}
 	panic("enocdedatum")
+}
+
+func tag(dt IDatum) string {
+	switch dt.(type) {
+	case int:
+		return "i"
+	case float32:
+		return "f"
+	case string:
+		return "s"
+	case []byte:
+		return "b"
+	default:
+		break
+	}
+	panic("tag")
+}
+
+func descriptor(id []IDatum) string {
+	outs := ","
+	for _, dt := range id {
+		outs = outs + tag(dt)
+	}
+	return outs
+}
+
+type Message struct {
+	Name   string
+	LDatum []IDatum
+}
+
+func EncodeMessage(message Message) []byte {
+	es := EncodeDatum(message.Name)
+	ds1 := EncodeDatum(descriptor(message.LDatum))
+	ds2 := []byte{}
+	for _, elem := range message.LDatum {
+		ds2 = append(ds2, EncodeDatum(elem)...)
+	}
+	es = append(es, ds1...)
+	es = append(es, ds2...)
+	return es
+}
+func SendMessage(message Message) {
+	bmsg := EncodeMessage(message)
+	OscSend(bmsg)
+}
+
+func ScStart() {
+	OscSetPort()
+	msg1 := Message{Name: "/notify", LDatum: []IDatum{1}}
+	SendMessage(msg1)
+	msg1 = Message{Name: "/g_new", LDatum: []IDatum{1, 1, 0}}
+	SendMessage(msg1)
 }
 
 var pcfg portConfig
