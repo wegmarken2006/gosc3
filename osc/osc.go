@@ -75,11 +75,6 @@ func DecodeF32(buf []byte) float32 {
 	return float32(num)
 }
 
-type portConfig struct {
-	UdpIP   string
-	UdpPort int
-}
-
 func align(n int) int {
 	return 4 - n%4
 }
@@ -92,6 +87,10 @@ func extend_(pad []byte, bts []byte) []byte {
 		outb = append(outb, pad...)
 	}
 	return outb
+}
+
+func EncodeString(str string) []byte {
+	return extend_([]byte{0}, EncodeStr(str))
 }
 
 func EncodeBlob(bts []byte) []byte {
@@ -111,7 +110,7 @@ func EncodeDatum(dt IDatum) []byte {
 	case float32:
 		return EncodeF32((dt.(float32)))
 	case string:
-		return EncodeStr((dt.(string)))
+		return EncodeString((dt.(string)))
 	case []byte:
 		return EncodeBlob((dt.([]byte)))
 	default:
@@ -162,35 +161,61 @@ func EncodeMessage(message Message) []byte {
 }
 func SendMessage(message Message) {
 	bmsg := EncodeMessage(message)
+	//fmt.Println("DEBUG")
+	//fmt.Println(bmsg)
+	//fmt.Println("DEBUG END")
 	OscSend(bmsg)
 }
 
 func ScStart() {
 	OscSetPort()
 	msg1 := Message{Name: "/notify", LDatum: []IDatum{1}}
+	//b'/notify\x00,i\x00\x00\x00\x00\x00\x01'
 	SendMessage(msg1)
 	msg1 = Message{Name: "/g_new", LDatum: []IDatum{1, 1, 0}}
 	SendMessage(msg1)
+}
+
+type portConfig struct {
+	UdpIP   string
+	UdpPort string
+	ConnOK  net.Conn
 }
 
 var pcfg portConfig
 
 func OscSetPort() portConfig {
 	pcfg.UdpIP = "127.0.0.1"
-	pcfg.UdpPort = 57110
+	pcfg.UdpPort = ":57110"
+
+	//start connection
+	m, _ := time.ParseDuration("2s")
+	conn, err := net.DialTimeout("udp", pcfg.UdpIP+pcfg.UdpPort, m)
+	pcfg.ConnOK = conn
+	//defer pcfg.ConnOK.Close()
+
+	if err != nil {
+		fmt.Println(err)
+		//panic("Connection error")
+	}
+
 	return pcfg
 }
 
 func OscSend(message []byte) {
-	m, _ := time.ParseDuration("2s")
-	conn, err := net.DialTimeout("udp", pcfg.UdpIP, m)
-	//defer conn.Close()
+	pcfg.ConnOK.Write(message)
 
-	if err != nil {
-		panic("Connection error")
-	}
-	conn.Write(message)
-	buff := make([]byte, 1024)
-	n, _ := conn.Read(buff)
-	fmt.Println(buff[:n])
+	go func(conn net.Conn) {
+		buff := make([]byte, 1024)
+
+		n, err := conn.Read(buff)
+		if err != nil {
+			fmt.Print(err)
+		} else {
+			fmt.Println(string(buff[:n]))
+
+		}
+		fmt.Println("End Rx")
+	}(pcfg.ConnOK)
+	fmt.Println("End Send")
 }
