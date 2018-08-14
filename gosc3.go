@@ -17,7 +17,7 @@ func main() {
 	fmt.Println(a1)
 	//	ScStart()
 
-	PrintUgen(UAbs(NewIConst(6)))
+	PrintUgen(UAbs(13))
 	PrintUgen(UAdd(NewIConst(6), NewIConst(2)))
 	fmt.Println("\nEnd")
 

@@ -903,10 +903,10 @@ func MkUnaryOperator(sp int, fun interface{}, op interface{}) UgenType {
 	ops := []UgenType{}
 	switch op.(type) {
 	case int:
-		ops = append(ops, IConst(op.(IConst)))
+		ops = append(ops, NewIConst(op.(int)))
 		break
 	case float64:
-		ops = append(ops, FConst(op.(FConst)))
+		ops = append(ops, NewFConst(op.(float64)))
 		break
 	}
 
