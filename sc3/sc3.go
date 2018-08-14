@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	RateKr = 0
-	RateIr = 1
+	RateIr = 0
+	RateKr = 1
 	RateAr = 2
 	RateDr = 3
 )
@@ -795,6 +795,110 @@ func encodeGraphDef(name string, graph Graph) []byte {
 	for _, elem := range graph.ugens {
 		a10 = append(a10, encodeNodeU(mm, elem)...)
 	}
+
 	out = append(out, a10...)
+
 	return out
 }
+
+func mkOscMce(rate int, name string, inputs []UgenType, ugen UgenType, ou int) UgenType {
+	rl := []int{}
+	for ind := 0; ind < ou; ind++ {
+		rl = append(rl, rate)
+	}
+	inps := append(inputs, mceChannels(ugen)...)
+	return mkUgen(rate, name, inps, rl, 0, 0)
+}
+
+func mkOscID(rate int, name string, inputs []UgenType, ou int) UgenType {
+	rl := []int{}
+	for ind := 0; ind < ou; ind++ {
+		rl = append(rl, rate)
+	}
+
+	return mkUgen(rate, name, inputs, rl, nextUID(), 0)
+}
+func mkOscillator(rate int, name string, inputs []UgenType, ou int) UgenType {
+	rl := []int{}
+	for ind := 0; ind < ou; ind++ {
+		rl = append(rl, rate)
+	}
+
+	return mkUgen(rate, name, inputs, rl, 0, 0)
+}
+
+func mkFilter(name string, inputs []UgenType, ou int, sp int) UgenType {
+	rates := []int{}
+	for _, elem := range inputs {
+		rates = append(rates, rateOf(elem))
+	}
+	maxrate := maxNum(rates, RateKr) //check python
+	ouList := []int{}
+	for ind := 0; ind < ou; ind++ {
+		ouList = append(ouList, maxrate)
+	}
+	return mkUgen(maxrate, name, inputs, ouList, 0, sp)
+}
+func mkFilterID(name string, inputs []UgenType, ou int, sp int) UgenType {
+	rates := []int{}
+	for _, elem := range inputs {
+		rates = append(rates, rateOf(elem))
+	}
+	maxrate := maxNum(rates, RateIr)
+	ouList := []int{}
+	for ind := 0; ind < ou; ind++ {
+		ouList = append(ouList, maxrate)
+	}
+	return mkUgen(maxrate, name, inputs, ouList, nextUID(), sp)
+}
+
+func mkFilterMce(name string, inputs []UgenType, ugen UgenType, ou int) UgenType {
+	inps := append(inputs, mceChannels(ugen)...)
+	return mkFilter(name, inps, ou, 0)
+}
+
+func mkOperator(name string, inputs []UgenType, sp int) UgenType {
+	rates := []int{}
+	for _, elem := range inputs {
+		rates = append(rates, rateOf(elem))
+	}
+	maxrate := maxNum(rates, RateIr)
+	outs := []int{maxrate}
+	return mkUgen(maxrate, name, inputs, outs, 0, sp)
+}
+
+func mkUnaryOperator(sp int, fun interface{}, op interface{}) UgenType {
+	switch op.(type) {
+	case IConst:
+		val := fun.(func(IConst) int)(op.(IConst))
+		return IConst{value: val}
+	case FConst:
+		val := fun.(func(FConst) float32)(op.(FConst))
+		return FConst{value: val}
+
+	default:
+		break
+	}
+	ops := []UgenType{}
+	switch op.(type) {
+	case int:
+		ops = append(ops, IConst(op.(IConst)))
+		break
+	case float32:
+		ops = append(ops, FConst(op.(FConst)))
+		break
+	}
+
+	return mkOperator("UnaryOpUGen", ops, sp)
+}
+
+/*
+def mk_binary_operator(sp: int, fun, op1, op2) -> Ugen:
+    if isinstance(op1, Constant) and isinstance(op2, Constant):
+        return Constant(fun(op1.value, op2.value))
+    elif type(op1) == int or type(op1) == float:
+        op1 = Constant(value=op1)
+    elif type(op2) == int or type(op2) == float:
+        op2 = Constant(value=op2)
+    return mk_operator("BinaryOpUGen", [op1, op2], sp)
+*/

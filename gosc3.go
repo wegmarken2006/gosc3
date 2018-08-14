@@ -14,7 +14,7 @@ func main() {
 
 	a1 := DecodeF32(EncodeF32(51.33))
 	fmt.Println(a1)
-	ScStart()
+	//	ScStart()
 
 	fmt.Println("end")
 
