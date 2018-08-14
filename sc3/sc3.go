@@ -1,8 +1,10 @@
 package sc3
 
 import (
+	"fmt"
 	. "gosc3/osc"
 	"sort"
+	"strconv"
 )
 
 const (
@@ -119,10 +121,10 @@ func NewIConst(value int) IConst {
 }
 
 type FConst struct {
-	value float32
+	value float64
 }
 
-func NewFConst(value float32) FConst {
+func NewFConst(value float64) FConst {
 	fc := FConst{}
 	fc.value = value
 	return fc
@@ -141,7 +143,7 @@ func (p fromPortU) isUgen() {}
 
 type NodeC struct {
 	id    int
-	value float32
+	value float64
 }
 
 type NodeK struct {
@@ -274,6 +276,26 @@ func rateOf(ugen interface{}) int {
 		return maxNum(rates, RateKr)
 	}
 	return RateKr
+}
+
+func PrintUgen(ugen UgenType) {
+	switch ugen.(type) {
+	case IConst:
+		fmt.Printf("C: " + string(ugen.(IConst).value))
+		break
+	case FConst:
+		val := ugen.(FConst).value
+		fmt.Printf("C: " + strconv.FormatFloat(val, 'E', -1, 64))
+		break
+	case Control:
+		fmt.Printf("K: " + string(ugen.(Control).name))
+		break
+	case Primitive:
+		fmt.Printf("P: " + string(ugen.(Primitive).name))
+		break
+	default:
+		break
+	}
 }
 
 func mceDegree(ugen UgenType) int {
@@ -465,7 +487,7 @@ func mkUgen(rate int, name string, inputs UgenList, outputs []int, ind int, sp i
 	return proxify(pr1)
 }
 
-func nodeCvalue(node NodeType) float32 {
+func nodeCvalue(node NodeType) float64 {
 	return node.(NodeC).value
 }
 
@@ -512,11 +534,11 @@ func asFromPort(node NodeType) UgenType {
 	}
 }
 
-func findCP(val float32, node NodeType) bool {
+func findCP(val float64, node NodeType) bool {
 	return val == node.(NodeC).value
 }
 
-func pushC(val float32, gr Graph) (NodeType, Graph) {
+func pushC(val float64, gr Graph) (NodeType, Graph) {
 	node := NodeC{id: gr.nextID + 1, value: val}
 	consts := []NodeC{node}
 	consts = append(consts, gr.constants...)
@@ -525,10 +547,10 @@ func pushC(val float32, gr Graph) (NodeType, Graph) {
 }
 
 func mkNodeC(ugen UgenType, gr Graph) (NodeType, Graph) {
-	var val float32
+	var val float64
 	switch ugen.(type) {
 	case IConst:
-		val = float32(ugen.(IConst).value)
+		val = float64(ugen.(IConst).value)
 	case FConst:
 		val = ugen.(FConst).value
 	default:
@@ -765,13 +787,13 @@ func encodeGraphDef(name string, graph Graph) []byte {
 	out = append(out, EncodeI16(1)...)
 	out = append(out, StrPstr(name)...)
 	out = append(out, EncodeI16(len(graph.constants))...)
-	l1 := []float32{}
+	l1 := []float64{}
 	for _, elem := range graph.constants {
 		l1 = append(l1, nodeCvalue(elem))
 	}
 	a5 := []byte{}
 	for _, elem := range l1 {
-		a5 = append(a5, EncodeF32(elem)...)
+		a5 = append(a5, EncodeF32(float32(elem))...)
 	}
 	out = append(out, a5...)
 	out = append(out, EncodeI16(len(graph.controls))...)
@@ -801,7 +823,7 @@ func encodeGraphDef(name string, graph Graph) []byte {
 	return out
 }
 
-func mkOscMce(rate int, name string, inputs []UgenType, ugen UgenType, ou int) UgenType {
+func MkOscMce(rate int, name string, inputs []UgenType, ugen UgenType, ou int) UgenType {
 	rl := []int{}
 	for ind := 0; ind < ou; ind++ {
 		rl = append(rl, rate)
@@ -810,7 +832,7 @@ func mkOscMce(rate int, name string, inputs []UgenType, ugen UgenType, ou int) U
 	return mkUgen(rate, name, inps, rl, 0, 0)
 }
 
-func mkOscID(rate int, name string, inputs []UgenType, ou int) UgenType {
+func MkOscID(rate int, name string, inputs []UgenType, ou int) UgenType {
 	rl := []int{}
 	for ind := 0; ind < ou; ind++ {
 		rl = append(rl, rate)
@@ -818,7 +840,7 @@ func mkOscID(rate int, name string, inputs []UgenType, ou int) UgenType {
 
 	return mkUgen(rate, name, inputs, rl, nextUID(), 0)
 }
-func mkOscillator(rate int, name string, inputs []UgenType, ou int) UgenType {
+func MkOscillator(rate int, name string, inputs []UgenType, ou int) UgenType {
 	rl := []int{}
 	for ind := 0; ind < ou; ind++ {
 		rl = append(rl, rate)
@@ -827,7 +849,7 @@ func mkOscillator(rate int, name string, inputs []UgenType, ou int) UgenType {
 	return mkUgen(rate, name, inputs, rl, 0, 0)
 }
 
-func mkFilter(name string, inputs []UgenType, ou int, sp int) UgenType {
+func MkFilter(name string, inputs []UgenType, ou int, sp int) UgenType {
 	rates := []int{}
 	for _, elem := range inputs {
 		rates = append(rates, rateOf(elem))
@@ -839,7 +861,7 @@ func mkFilter(name string, inputs []UgenType, ou int, sp int) UgenType {
 	}
 	return mkUgen(maxrate, name, inputs, ouList, 0, sp)
 }
-func mkFilterID(name string, inputs []UgenType, ou int, sp int) UgenType {
+func MkFilterID(name string, inputs []UgenType, ou int, sp int) UgenType {
 	rates := []int{}
 	for _, elem := range inputs {
 		rates = append(rates, rateOf(elem))
@@ -852,12 +874,12 @@ func mkFilterID(name string, inputs []UgenType, ou int, sp int) UgenType {
 	return mkUgen(maxrate, name, inputs, ouList, nextUID(), sp)
 }
 
-func mkFilterMce(name string, inputs []UgenType, ugen UgenType, ou int) UgenType {
+func MkFilterMce(name string, inputs []UgenType, ugen UgenType, ou int) UgenType {
 	inps := append(inputs, mceChannels(ugen)...)
-	return mkFilter(name, inps, ou, 0)
+	return MkFilter(name, inps, ou, 0)
 }
 
-func mkOperator(name string, inputs []UgenType, sp int) UgenType {
+func MkOperator(name string, inputs []UgenType, sp int) UgenType {
 	rates := []int{}
 	for _, elem := range inputs {
 		rates = append(rates, rateOf(elem))
@@ -867,15 +889,14 @@ func mkOperator(name string, inputs []UgenType, sp int) UgenType {
 	return mkUgen(maxrate, name, inputs, outs, 0, sp)
 }
 
-func mkUnaryOperator(sp int, fun interface{}, op interface{}) UgenType {
+func MkUnaryOperator(sp int, fun interface{}, op interface{}) UgenType {
 	switch op.(type) {
 	case IConst:
-		val := fun.(func(IConst) int)(op.(IConst))
-		return IConst{value: val}
-	case FConst:
-		val := fun.(func(FConst) float32)(op.(FConst))
+		val := fun.(func(float64) float64)(float64(op.(IConst).value))
 		return FConst{value: val}
-
+	case FConst:
+		val := fun.(func(float64) float64)(op.(FConst).value)
+		return FConst{value: val}
 	default:
 		break
 	}
@@ -884,21 +905,57 @@ func mkUnaryOperator(sp int, fun interface{}, op interface{}) UgenType {
 	case int:
 		ops = append(ops, IConst(op.(IConst)))
 		break
-	case float32:
+	case float64:
 		ops = append(ops, FConst(op.(FConst)))
 		break
 	}
 
-	return mkOperator("UnaryOpUGen", ops, sp)
+	return MkOperator("UnaryOpUGen", ops, sp)
 }
 
-/*
-def mk_binary_operator(sp: int, fun, op1, op2) -> Ugen:
-    if isinstance(op1, Constant) and isinstance(op2, Constant):
-        return Constant(fun(op1.value, op2.value))
-    elif type(op1) == int or type(op1) == float:
-        op1 = Constant(value=op1)
-    elif type(op2) == int or type(op2) == float:
-        op2 = Constant(value=op2)
-    return mk_operator("BinaryOpUGen", [op1, op2], sp)
-*/
+func MkBinaryOperator(sp int, fun interface{}, op1 interface{}, op2 interface{}) UgenType {
+	switch op1.(type) {
+	case IConst:
+		switch op2.(type) {
+		case IConst:
+			opp1 := float64(op1.(IConst).value)
+			opp2 := float64(op2.(IConst).value)
+			val := fun.(func(float64, float64) float64)(opp1, opp2)
+			return FConst{value: val}
+		case FConst:
+			opp1 := float64(op1.(IConst).value)
+			opp2 := op2.(FConst).value
+			val := fun.(func(float64, float64) float64)(opp1, opp2)
+			return FConst{value: val}
+		}
+	case FConst:
+		switch op2.(type) {
+		case IConst:
+			opp1 := op1.(FConst).value
+			opp2 := float64(op2.(IConst).value)
+			val := fun.(func(float64, float64) float64)(opp1, opp2)
+			return FConst{value: val}
+		case FConst:
+			opp1 := op1.(FConst).value
+			opp2 := op2.(FConst).value
+			val := fun.(func(float64, float64) float64)(opp1, opp2)
+			return FConst{value: val}
+		}
+
+	}
+
+	ops := []UgenType{}
+	switch op1.(type) {
+	case int:
+		ops = append(ops, IConst{value: op1.(int)})
+	case float64:
+		ops = append(ops, FConst{value: op1.(float64)})
+	}
+	switch op2.(type) {
+	case int:
+		ops = append(ops, IConst{value: op2.(int)})
+	case float64:
+		ops = append(ops, FConst{value: op2.(float64)})
+	}
+	return MkOperator("BinaryOpUGen", ops, sp)
+}
