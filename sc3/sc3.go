@@ -601,13 +601,9 @@ func findUP(rate int, name string, id int, node NodeType) bool {
 }
 
 func pushU(ugen UgenType, gr Graph) (NodeType, Graph) {
-	intrates := []int{}
-	for _, elem := range ugen.(Primitive).outputs {
-		intrates = append(intrates, rateOf(elem))
-	}
 	node := NodeU{id: gr.nextID + 1, name: ugen.(Primitive).name, Rate: ugen.(Primitive).Rate,
 		inputs: ugen.(Primitive).inputs, Special: ugen.(Primitive).Special, UgenID: ugen.(Primitive).Index,
-		outputs: intrates}
+		outputs: ugen.(Primitive).outputs}
 	ugens := []NodeU{node}
 	ugens = append(ugens, gr.ugens...)
 	gr1 := Graph{nextID: gr.nextID + 1, constants: gr.constants, controls: gr.controls, ugens: ugens}
