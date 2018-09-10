@@ -663,6 +663,8 @@ func mkNode(ugen UgenType, gr Graph) (NodeType, Graph) {
 		return mkNodeC(ugen, gr)
 	case Primitive:
 		return mkNodeU(ugen, gr)
+	case Control:
+		return mkNodeK(ugen, gr)
 	case Mrg:
 		_, gr1 := mkNode(ugen.(Mrg).right, gr)
 		return mkNode(ugen.(Mrg).left, gr1)
