@@ -484,7 +484,7 @@ func proxify(ugen UgenType) UgenType {
 
 func mkUgen(rate int, name string, inputs UgenList, outputs []int, ind int, sp int) UgenType {
 	pr1 := Primitive{name: name, Rate: rate, inputs: inputs, outputs: outputs, Special: sp, Index: ind}
-	return proxify(pr1)
+	return proxify(mceExpand(pr1))
 }
 
 func nodeCvalue(node NodeType) float64 {
